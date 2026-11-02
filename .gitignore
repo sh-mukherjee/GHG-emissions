@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# marimo
+.marimo/
+__marimo__/
+public/cache/
+
+# build output
+dist/
+
+# OS
+.DS_Store
+Thumbs.db

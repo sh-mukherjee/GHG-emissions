@@ -1,0 +1,61 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install marimo
+        run: pip install "marimo[sandbox]"
+
+      - name: Verify the data snapshot exists
+        run: |
+          if [ ! -f public/ghg.parquet ]; then
+            echo "::error::public/ghg.parquet is missing."
+            echo "::error::Run the 'Refresh GHG data snapshot' workflow once (Actions tab -> Run workflow), or run 'uv run scripts/snapshot.py' locally and commit the result."
+            exit 1
+          fi
+
+      - name: Check WebAssembly compatibility
+        run: marimo check app.py --select MW
+
+      - name: Export notebook to WebAssembly
+        # --no-sandbox avoids an interactive "run in a sandboxed venv?" prompt.
+        run: marimo export html-wasm app.py -o dist --mode run --no-sandbox --force
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
